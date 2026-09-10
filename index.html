@@ -1,0 +1,337 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>217A Wyckoff — Project Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --paper: #F2F1ED; --panel: #FBFAF7; --ink: #26241F; --ink-soft: #6F6A60;
+    --ink-faint: #9C978C; --line: #DEDAD1; --line-strong: #CFC9BD;
+    --accent: #2E6B4C; --accent-soft: #E5EDE7; --flag: #8A6D1F; --flag-soft: #F1EAD6;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; line-height: 1.5; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 44px 24px 80px; }
+  .masthead { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .masthead .addr { font-size: 12px; color: var(--ink-faint); letter-spacing: .04em; }
+  h1 { font-size: 30px; font-weight: 620; letter-spacing: -0.02em; margin: 6px 0 4px; line-height: 1.1; }
+  .goal { color: var(--ink-soft); font-size: 15px; max-width: 62ch; margin: 0; }
+  .rail { margin: 34px 0 8px; display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
+  .rail::before { content: ""; position: absolute; top: 13px; left: 12.5%; right: 12.5%; height: 2px; background: var(--line-strong); }
+  .gate { text-align: center; position: relative; padding: 0 6px; }
+  .node { width: 28px; height: 28px; border-radius: 50%; margin: 0 auto 12px; background: var(--panel); border: 2px solid var(--line-strong); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 640; color: var(--ink-faint); position: relative; z-index: 1; }
+  .gate.complete .node { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .gate.active .node { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .gate .g-name { font-size: 13px; font-weight: 560; letter-spacing: -0.01em; }
+  .gate .g-status { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+  .gate.active .g-status { color: var(--accent); }
+  .progress-line { display: flex; align-items: center; gap: 14px; margin: 30px 0 8px; }
+  .bar { flex: 1; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; }
+  .count { font-size: 13px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .phase { margin-top: 40px; }
+  .phase-head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1.5px solid var(--line-strong); }
+  .phase-num { font-size: 22px; font-weight: 300; color: var(--ink-faint); font-variant-numeric: tabular-nums; min-width: 24px; }
+  .phase-name { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .phase-tag { font-size: 12px; color: var(--ink-soft); margin-left: auto; }
+  .task { border-bottom: 1px solid var(--line); }
+  .task-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 2px; }
+  .cbox { appearance: none; -webkit-appearance: none; flex: 0 0 auto; width: 19px; height: 19px; margin-top: 1px; border: 1.5px solid var(--ink-faint); border-radius: 4px; background: var(--panel); cursor: pointer; position: relative; }
+  .cbox:checked { background: var(--accent); border-color: var(--accent); }
+  .cbox:checked::after { content: ""; position: absolute; left: 6px; top: 2px; width: 4px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(42deg); }
+  .cbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .task-main { flex: 1; min-width: 0; }
+  .task-action { font-size: 15px; letter-spacing: -0.005em; }
+  .task-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 5px; font-size: 12.5px; color: var(--ink-soft); }
+  .task-meta .owner b { font-weight: 560; color: var(--ink); }
+  .chips { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .chip { font-size: 11.5px; padding: 3px 9px; border-radius: 99px; white-space: nowrap; border: 1px solid var(--line-strong); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .chip.week { background: var(--flag-soft); border-color: transparent; color: var(--flag); font-weight: 560; }
+  .chip.wait { font-style: italic; }
+  .notebtn { background: none; border: none; padding: 2px 4px; cursor: pointer; font-size: 12px; color: var(--ink-faint); font-family: var(--font); }
+  .notebtn:hover { color: var(--accent); }
+  .notebtn.has::after { content: " ●"; color: var(--accent); font-size: 8px; vertical-align: middle; }
+  .note-slot { padding: 0 2px 13px 31px; display: none; }
+  .note-slot.open { display: block; }
+  .note-slot textarea { width: 100%; min-height: 46px; resize: vertical; border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; font-family: var(--font); font-size: 13.5px; color: var(--ink); background: var(--panel); }
+  .note-slot textarea:focus { outline: none; border-color: var(--accent); }
+  .task.done .task-action { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+  .task.done .task-meta { opacity: .6; }
+  .band { margin-top: 44px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; }
+  .band h2 { font-size: 13px; font-weight: 620; letter-spacing: .02em; color: var(--ink-soft); margin: 0 0 12px; }
+  .standing { list-style: none; margin: 0; padding: 0; }
+  .standing li { position: relative; padding-left: 18px; font-size: 14px; color: var(--ink); margin-bottom: 8px; }
+  .standing li::before { content: ""; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border: 1.5px solid var(--accent); border-radius: 50%; }
+  .standing li:last-child { margin-bottom: 0; }
+  .contacts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 26px; }
+  .contact .c-name { font-size: 14px; font-weight: 560; }
+  .contact .c-role { font-size: 12.5px; color: var(--ink-soft); }
+  .contact .c-line { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .footer { margin-top: 34px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .status { font-size: 12px; color: var(--ink-faint); display: flex; align-items: center; gap: 7px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); }
+  .status.live .dot { background: var(--accent); }
+  .status.local .dot { background: var(--flag); }
+  .reset { background: none; border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; font-family: var(--font); }
+  .reset:hover { border-color: var(--ink-soft); color: var(--ink); }
+  @media (max-width: 620px) {
+    .task-row { flex-wrap: wrap; }
+    .chips { flex-direction: row; width: 100%; padding-left: 31px; margin-top: 2px; align-items: center; }
+    .contacts { grid-template-columns: 1fr; }
+    .rail .g-status { display: none; }
+    h1 { font-size: 25px; }
+  }
+  @media (prefers-reduced-motion: no-preference) { .bar > span { transition: width .5s cubic-bezier(.2,.7,.2,1); } }
+  @media print { body { background: #fff; } .reset, .notebtn { display: none; } .band, .cbox { border-color: #bbb; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="masthead">
+      <span class="addr">217A Wyckoff St, Brooklyn · Block 387 Lot 67</span>
+      <span class="addr" id="today"></span>
+    </div>
+    <h1>AC Condenser Relocation</h1>
+    <p class="goal">Relocating the 217A rooftop HVAC unit to the middle of the roof, funded by 219 Wyckoff. Path to done: Landmarks approval → pre-DOB documents → Buildings permit → install.</p>
+  </header>
+
+  <div class="rail" id="rail"></div>
+
+  <div class="progress-line">
+    <div class="bar"><span id="barfill"></span></div>
+    <div class="count" id="count">0 of 0 done</div>
+  </div>
+
+  <main id="phases"></main>
+
+  <section class="band">
+    <h2>Standing reminders</h2>
+    <ul class="standing">
+      <li>Coordinate logistics with Marcel directly — the attorney no-contact rule binds Barry, not you and Alison.</li>
+      <li>Loop Barry in on anything substantive (agreements, disputes), not routine scheduling.</li>
+      <li>Keep a running tally of DOB fees Mandip fronts so reimbursement stays clean.</li>
+    </ul>
+  </section>
+
+  <section class="band">
+    <h2>Contacts</h2>
+    <div class="contacts">
+      <div class="contact"><div class="c-name">Zach &amp; Alison</div><div class="c-role">219 Wyckoff — owners funding the work</div></div>
+      <div class="contact"><div class="c-name">Mandip Singh</div><div class="c-role">M-Azad Construction — GC / expediter</div><div class="c-line">347-223-9266</div></div>
+      <div class="contact"><div class="c-name">Marcel Dzama</div><div class="c-role">217A Wyckoff — property owner</div><div class="c-line">646-644-4511</div></div>
+      <div class="contact"><div class="c-name">Barry Golden</div><div class="c-role">Pitcoff Law Group — attorney</div><div class="c-line">646-634-6460</div></div>
+      <div class="contact"><div class="c-name">Greg Murdison</div><div class="c-role">ACP5 / asbestos investigator</div></div>
+      <div class="contact"><div class="c-name">Survey company</div><div class="c-role">To be selected &amp; booked</div></div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <span class="status" id="status"><span class="dot"></span><span id="status-text">Starting…</span></span>
+    <button class="reset" id="reset">Reset all progress</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SUPABASE CONFIG — fill these two in to make the tracker shared.
+   Leave them blank and it still works, saving only on this device.
+   ============================================================ */
+const SUPABASE_URL = "https://wxzxbfzvicnqsqevuzme.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4enhiZnp2aWNucXNxZXZ1em1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDI1OTIsImV4cCI6MjEwNDYxODU5Mn0.a-iv2Ly0ZLdYHjvW6PbRwziULidXjPQZVcd7YY6shV0";
+const ROW_ID = "217a";          // the single shared record for this project
+/* ============================================================ */
+
+const PHASES = [
+  { n: 1, name: "Landmarks (LPC) approval", tag: "Application submitted", activeLabel: "Awaiting approval",
+    tasks: [
+      { id: "wire", action: "Wire payment to Mandip", owner: "Zach / Alison", timing: "Sent", done: true },
+      { id: "loa", action: "Marcel signs Letter of Authorization", owner: "Marcel", timing: "Done 9/8", done: true },
+      { id: "logins", action: "Marcel provides LPC + DOB login credentials", owner: "Marcel", timing: "Received", done: true },
+      { id: "lpc-sub", action: "LPC application resubmitted & e-signed", owner: "Mandip", timing: "Filed 9/9", done: true },
+      { id: "lpc-appr", action: "LPC reviews and approves the application", owner: "Landmarks", timing: "City-dependent", wait: true },
+    ] },
+  { n: 2, name: "Pre-DOB documents", tag: "Runs in parallel with LPC",
+    tasks: [
+      { id: "greg-time", action: "Confirm asbestos inspector arrival time with Greg", owner: "Zach", timing: "Today 9/9", week: true },
+      { id: "marcel-heads", action: "Send Marcel the heads-up about the roof inspection", owner: "Zach / Alison", timing: "Today 9/9", week: true },
+      { id: "asbestos", action: "Asbestos inspection / ACP5 fieldwork on the roof (access via 219)", owner: "Greg Murdison", timing: "Thu 9/10", week: true },
+      { id: "acp5", action: "Receive the completed, signed ACP5 form", owner: "Greg Murdison", timing: "After 9/10" },
+      { id: "survey-book", action: "Book the building survey — the long pole, ~2–3 wk lead", owner: "Zach", timing: "ASAP", week: true },
+      { id: "survey-done", action: "Survey completed and delivered", owner: "Survey co.", timing: "~2–3 wks" },
+      { id: "hvac-insp", action: "HVAC contractor functional inspection of existing unit", owner: "Mandip / Marcel", timing: "Tue 9/15, 10am", week: true },
+    ] },
+  { n: 3, name: "DOB (Buildings) filing & permit", tag: "Needs LPC approval + survey + ACP5",
+    tasks: [
+      { id: "dob-file", action: "Mandip files the ALT-1 in DOB NOW", owner: "Mandip", timing: "After docs in hand" },
+      { id: "dob-fees", action: "Pay DOB fees and reimburse Mandip", owner: "Zach / Alison", timing: "At filing" },
+      { id: "dob-permit", action: "DOB issues the permit", owner: "Buildings", timing: "City-dependent", wait: true },
+    ] },
+  { n: 4, name: "Construction", tag: "After permit is in hand",
+    tasks: [
+      { id: "sched", action: "Schedule installation with Mandip and Marcel", owner: "Zach / Mandip", timing: "Post-permit" },
+      { id: "roof-access", action: "Roof access through 219 during the build", owner: "Zach", timing: "Install window" },
+      { id: "interior", action: "Brief final-day interior access at 217A to test the unit", owner: "Marcel", timing: "Final day" },
+      { id: "vibration", action: "Confirm vibration / isolation on the new unit", owner: "Mandip", timing: "At install" },
+    ] },
+];
+
+let state = { checked: {}, notes: {} };
+let openNotes = {};
+let sb = null;
+const KEY = "tracker-217a";
+
+PHASES.forEach(p => p.tasks.forEach(t => { if (t.done) state.checked[t.id] = true; }));
+
+function setStatus(mode, text) {
+  const el = document.getElementById("status");
+  el.className = "status " + mode;
+  document.getElementById("status-text").textContent = text;
+}
+function mergeData(d) {
+  if (!d) return;
+  if (d.checked) state.checked = Object.assign({}, state.checked, d.checked);
+  if (d.notes) state.notes = Object.assign({}, state.notes, d.notes);
+}
+
+/* ---- Persistence: Supabase when configured, else local ---- */
+async function load() {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    try {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data, error } = await sb.from("tracker_state").select("data").eq("id", ROW_ID).maybeSingle();
+      if (error) throw error;
+      if (data && data.data) mergeData(data.data);
+      subscribe();
+      setStatus("live", "Synced — shared with anyone who has the link");
+      return;
+    } catch (e) {
+      setStatus("local", "Couldn't reach Supabase — saving on this device only");
+    }
+  }
+  try {
+    const r = await window.storage.get(KEY);
+    if (r && r.value) mergeData(JSON.parse(r.value));
+  } catch (e) { /* first run */ }
+  if (!sb) setStatus("local", "Saved on this device (add Supabase config to share)");
+}
+
+async function save() {
+  const payload = { checked: state.checked, notes: state.notes };
+  if (sb) {
+    try {
+      const { error } = await sb.from("tracker_state").upsert({ id: ROW_ID, data: payload, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      stampSaved(); return;
+    } catch (e) { setStatus("local", "Sync failed — retrying on next change"); }
+  }
+  try { await window.storage.set(KEY, JSON.stringify(payload)); } catch (e) {}
+  stampSaved();
+}
+
+function stampSaved() {
+  const t = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (sb) setStatus("live", "Synced · " + t);
+}
+
+function subscribe() {
+  try {
+    sb.channel("tracker-" + ROW_ID)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tracker_state", filter: "id=eq." + ROW_ID },
+        payload => {
+          const remote = payload.new && payload.new.data;
+          if (!remote) return;
+          state.checked = remote.checked || {};
+          state.notes = remote.notes || {};
+          const typing = document.activeElement && document.activeElement.matches("[data-noteinput]");
+          renderRail(); renderProgress();
+          if (!typing) renderPhases();
+        })
+      .subscribe();
+  } catch (e) {}
+}
+
+/* ---- Rendering ---- */
+function allTasks() { return PHASES.flatMap(p => p.tasks); }
+function phaseStatus() {
+  let firstIncomplete = -1;
+  const per = PHASES.map((p, i) => {
+    const total = p.tasks.length, done = p.tasks.filter(t => state.checked[t.id]).length;
+    if (done < total && firstIncomplete === -1) firstIncomplete = i;
+    return { total, done };
+  });
+  return PHASES.map((p, i) => {
+    const { total, done } = per[i];
+    if (done === total) return "complete";
+    if (i === firstIncomplete || done > 0) return "active";
+    return "pending";
+  });
+}
+function renderRail() {
+  const st = phaseStatus();
+  document.getElementById("rail").innerHTML = PHASES.map((p, i) => {
+    const s = st[i];
+    const label = s === "complete" ? "Complete" : s === "active" ? (p.activeLabel || "In progress") : "Not started";
+    const short = ["Landmarks", "Documents", "DOB permit", "Construction"][i];
+    return `<div class="gate ${s}"><div class="node">${s === "complete" ? "✓" : p.n}</div><div class="g-name">${short}</div><div class="g-status">${label}</div></div>`;
+  }).join("");
+}
+function renderProgress() {
+  const tasks = allTasks(), done = tasks.filter(t => state.checked[t.id]).length;
+  const pct = Math.round((done / tasks.length) * 100);
+  document.getElementById("barfill").style.width = pct + "%";
+  document.getElementById("count").textContent = `${done} of ${tasks.length} done · ${pct}%`;
+}
+function renderPhases() {
+  document.getElementById("phases").innerHTML = PHASES.map(p => {
+    const rows = p.tasks.map(t => {
+      const checked = !!state.checked[t.id], note = state.notes[t.id] || "", open = openNotes[t.id];
+      const chips = [];
+      if (checked) chips.push(`<span class="chip">Done</span>`);
+      else { if (t.week) chips.push(`<span class="chip week">This week</span>`); chips.push(`<span class="chip ${t.wait ? "wait" : ""}">${t.timing}</span>`); }
+      return `<div class="task ${checked ? "done" : ""}" data-id="${t.id}">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="${t.id}" ${checked ? "checked" : ""} aria-label="${t.action}">
+          <div class="task-main">
+            <div class="task-action">${t.action}</div>
+            <div class="task-meta"><span class="owner">Owner: <b>${t.owner}</b></span>
+              <button class="notebtn ${note ? "has" : ""}" data-note="${t.id}">${open ? "Hide note" : "Note"}</button></div>
+          </div>
+          <div class="chips">${chips.join("")}</div>
+        </div>
+        <div class="note-slot ${open ? "open" : ""}"><textarea data-noteinput="${t.id}" placeholder="Add a note or log an update…">${note}</textarea></div>
+      </div>`;
+    }).join("");
+    return `<section class="phase"><div class="phase-head"><span class="phase-num">${String(p.n).padStart(2, "0")}</span><span class="phase-name">${p.name}</span><span class="phase-tag">${p.tag}</span></div>${rows}</section>`;
+  }).join("");
+}
+function renderAll() { renderRail(); renderProgress(); renderPhases(); }
+
+document.addEventListener("change", e => {
+  const cb = e.target.closest(".cbox");
+  if (cb) { state.checked[cb.dataset.id] = cb.checked; renderAll(); save(); }
+});
+document.addEventListener("click", e => {
+  const nb = e.target.closest("[data-note]");
+  if (nb) {
+    const id = nb.dataset.note; openNotes[id] = !openNotes[id]; renderPhases();
+    if (openNotes[id]) { const ta = document.querySelector(`[data-noteinput="${id}"]`); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
+  }
+});
+document.addEventListener("input", e => {
+  const ta = e.target.closest("[data-noteinput]");
+  if (ta) {
+    const id = ta.dataset.noteinput; state.notes[id] = ta.value;
+    const btn = document.querySelector(`[data-note="${id}"]`); if (btn) btn.classList.toggle("has", !!ta.value);
+    clearTimeout(window.__noteT); window.__noteT = setTimeout(save, 600);
+  }
+});
+document.getElementById("reset").addEventListener("click", () => {
+  if (!confirm("Reset all checkmarks and notes back to the starting state?")) return;
+  state = { checked: {}, notes: {} }; openNotes = {};
+  PHASES.forEach(p => p.tasks.forEach(t => { if (t.done) state.checked[t.id] = true; }));
+  renderAll(); save();
+});
+document.getElementById("today").textContent = "Updated " + new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+
+(async function init() { await load(); renderAll(); })();
+</script>
