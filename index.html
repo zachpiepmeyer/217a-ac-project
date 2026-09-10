@@ -70,6 +70,16 @@
   .contact .c-name { font-size: 14px; font-weight: 560; }
   .contact .c-role { font-size: 12.5px; color: var(--ink-soft); }
   .contact .c-line { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .resources { list-style: none; margin: 0; padding: 0; }
+  .resources li { margin-bottom: 10px; }
+  .resources li:last-child { margin-bottom: 0; }
+  .resource { display: flex; align-items: flex-start; gap: 11px; text-decoration: none; color: inherit; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); transition: border-color .12s ease; }
+  .resource:hover { border-color: var(--accent); }
+  .resource:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .resource .r-ic { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 680; letter-spacing: .02em; }
+  .resource .r-main { display: flex; flex-direction: column; min-width: 0; }
+  .resource .r-name { font-size: 14px; font-weight: 560; }
+  .resource .r-meta { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
   .footer { margin-top: 34px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
   .status { font-size: 12px; color: var(--ink-faint); display: flex; align-items: center; gap: 7px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); }
@@ -323,6 +333,21 @@
       <div class="contact"><div class="c-name">Greg Murdison</div><div class="c-role">ACP5 / asbestos investigator</div></div>
       <div class="contact"><div class="c-name">Survey company</div><div class="c-role">To be selected &amp; booked</div></div>
     </div>
+  </section>
+
+  <section class="band">
+    <h2>Resources</h2>
+    <ul class="resources">
+      <li>
+        <a class="resource" href="217a-wyckoff-plans-2026-03-12.pdf" target="_blank" rel="noopener">
+          <span class="r-ic">PDF</span>
+          <span class="r-main">
+            <span class="r-name">Architectural drawing set — 217A Wyckoff St</span>
+            <span class="r-meta">OT-MH · issued March 12, 2026 · 38 pages</span>
+          </span>
+        </a>
+      </li>
+    </ul>
   </section>
 
   <div class="footer">
