@@ -1,5 +1,5 @@
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>217A Wyckoff — Project Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -40,6 +40,8 @@
   .cbox:checked { background: var(--accent); border-color: var(--accent); }
   .cbox:checked::after { content: ""; position: absolute; left: 6px; top: 2px; width: 4px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(42deg); }
   .cbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .cbox:disabled { cursor: default; border-style: dashed; }
+  .cbox:disabled:checked { border-style: solid; opacity: .85; }
   .task-main { flex: 1; min-width: 0; }
   .task-action { font-size: 15px; letter-spacing: -0.005em; }
   .task-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 5px; font-size: 12.5px; color: var(--ink-soft); }
@@ -55,6 +57,7 @@
   .note-slot.open { display: block; }
   .note-slot textarea { width: 100%; min-height: 46px; resize: vertical; border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; font-family: var(--font); font-size: 13.5px; color: var(--ink); background: var(--panel); }
   .note-slot textarea:focus { outline: none; border-color: var(--accent); }
+  .note-slot textarea[readonly] { color: var(--ink-soft); background: var(--paper); }
   .task.done .task-action { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--line-strong); }
   .task.done .task-meta { opacity: .6; }
   .band { margin-top: 44px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; }
@@ -72,8 +75,15 @@
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); }
   .status.live .dot { background: var(--accent); }
   .status.local .dot { background: var(--flag); }
-  .reset { background: none; border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; font-family: var(--font); }
-  .reset:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .footer-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn-quiet { background: none; border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; font-family: var(--font); }
+  .btn-quiet:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .whoami { font-size: 12px; color: var(--ink-faint); }
+  .signin { margin-top: 16px; display: none; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .signin.open { display: flex; }
+  .signin input { border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; font-family: var(--font); font-size: 13.5px; background: #fff; color: var(--ink); }
+  .signin button { background: var(--accent); border: none; color: #fff; border-radius: 6px; padding: 9px 16px; font-size: 13px; cursor: pointer; font-family: var(--font); }
+  .si-msg { font-size: 12.5px; color: var(--flag); flex-basis: 100%; }
   @media (max-width: 620px) {
     .task-row { flex-wrap: wrap; }
     .chips { flex-direction: row; width: 100%; padding-left: 31px; margin-top: 2px; align-items: center; }
@@ -82,27 +92,217 @@
     h1 { font-size: 25px; }
   }
   @media (prefers-reduced-motion: no-preference) { .bar > span { transition: width .5s cubic-bezier(.2,.7,.2,1); } }
-  @media print { body { background: #fff; } .reset, .notebtn { display: none; } .band, .cbox { border-color: #bbb; } }
+  @media print { body { background: #fff; } .btn-quiet, .notebtn, .signin { display: none; } .band, .cbox { border-color: #bbb; } }
 </style>
 
-<div class="wrap">
+</head><body><div class="wrap">
   <header>
     <div class="masthead">
       <span class="addr">217A Wyckoff St, Brooklyn · Block 387 Lot 67</span>
-      <span class="addr" id="today"></span>
+      <span class="addr" id="today">Updated Sep 10, 2026</span>
     </div>
     <h1>AC Condenser Relocation</h1>
     <p class="goal">Relocating the 217A rooftop HVAC unit to the middle of the roof, funded by 219 Wyckoff. Path to done: Landmarks approval → pre-DOB documents → Buildings permit → install.</p>
   </header>
 
-  <div class="rail" id="rail"></div>
+  <div class="rail" id="rail"><div class="gate active"><div class="node">1</div><div class="g-name">Landmarks</div><div class="g-status">Awaiting approval</div></div><div class="gate pending"><div class="node">2</div><div class="g-name">Documents</div><div class="g-status">Not started</div></div><div class="gate pending"><div class="node">3</div><div class="g-name">DOB permit</div><div class="g-status">Not started</div></div><div class="gate pending"><div class="node">4</div><div class="g-name">Construction</div><div class="g-status">Not started</div></div></div>
 
   <div class="progress-line">
-    <div class="bar"><span id="barfill"></span></div>
-    <div class="count" id="count">0 of 0 done</div>
+    <div class="bar"><span id="barfill" style="width: 21%;"></span></div>
+    <div class="count" id="count">4 of 19 done · 21%</div>
   </div>
 
-  <main id="phases"></main>
+  <main id="phases"><section class="phase"><div class="phase-head"><span class="phase-num">01</span><span class="phase-name">Landmarks (LPC) approval</span><span class="phase-tag">Application submitted</span></div><div class="task done" data-id="wire">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="wire" checked="" disabled="" aria-label="Wire payment to Mandip">
+          <div class="task-main">
+            <div class="task-action">Wire payment to Mandip</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Zach / Alison</b></span></div>
+          </div>
+          <div class="chips"><span class="chip">Done</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="wire" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task done" data-id="loa">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="loa" checked="" disabled="" aria-label="Marcel signs Letter of Authorization">
+          <div class="task-main">
+            <div class="task-action">Marcel signs Letter of Authorization</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Marcel</b></span></div>
+          </div>
+          <div class="chips"><span class="chip">Done</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="loa" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task done" data-id="logins">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="logins" checked="" disabled="" aria-label="Marcel provides LPC + DOB login credentials">
+          <div class="task-main">
+            <div class="task-action">Marcel provides LPC + DOB login credentials</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Marcel</b></span></div>
+          </div>
+          <div class="chips"><span class="chip">Done</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="logins" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task done" data-id="lpc-sub">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="lpc-sub" checked="" disabled="" aria-label="LPC application resubmitted &amp; e-signed">
+          <div class="task-main">
+            <div class="task-action">LPC application resubmitted &amp; e-signed</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Mandip</b></span></div>
+          </div>
+          <div class="chips"><span class="chip">Done</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="lpc-sub" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="lpc-appr">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="lpc-appr" disabled="" aria-label="LPC reviews and approves the application">
+          <div class="task-main">
+            <div class="task-action">LPC reviews and approves the application</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Landmarks</b></span></div>
+          </div>
+          <div class="chips"><span class="chip wait">City-dependent</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="lpc-appr" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div></section><section class="phase"><div class="phase-head"><span class="phase-num">02</span><span class="phase-name">Pre-DOB documents</span><span class="phase-tag">Runs in parallel with LPC</span></div><div class="task " data-id="greg-time">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="greg-time" disabled="" aria-label="Confirm asbestos inspector arrival time with Greg">
+          <div class="task-main">
+            <div class="task-action">Confirm asbestos inspector arrival time with Greg</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Zach</b></span></div>
+          </div>
+          <div class="chips"><span class="chip week">This week</span><span class="chip ">Today 9/9</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="greg-time" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="marcel-heads">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="marcel-heads" disabled="" aria-label="Send Marcel the heads-up about the roof inspection">
+          <div class="task-main">
+            <div class="task-action">Send Marcel the heads-up about the roof inspection</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Zach / Alison</b></span></div>
+          </div>
+          <div class="chips"><span class="chip week">This week</span><span class="chip ">Today 9/9</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="marcel-heads" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="asbestos">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="asbestos" disabled="" aria-label="Asbestos inspection / ACP5 fieldwork on the roof (access via 219)">
+          <div class="task-main">
+            <div class="task-action">Asbestos inspection / ACP5 fieldwork on the roof (access via 219)</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Greg Murdison</b></span></div>
+          </div>
+          <div class="chips"><span class="chip week">This week</span><span class="chip ">Thu 9/10</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="asbestos" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="acp5">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="acp5" disabled="" aria-label="Receive the completed, signed ACP5 form">
+          <div class="task-main">
+            <div class="task-action">Receive the completed, signed ACP5 form</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Greg Murdison</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">After 9/10</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="acp5" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="survey-book">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="survey-book" disabled="" aria-label="Book the building survey — the long pole, ~2–3 wk lead">
+          <div class="task-main">
+            <div class="task-action">Book the building survey — the long pole, ~2–3 wk lead</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Zach</b></span></div>
+          </div>
+          <div class="chips"><span class="chip week">This week</span><span class="chip ">ASAP</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="survey-book" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="survey-done">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="survey-done" disabled="" aria-label="Survey completed and delivered">
+          <div class="task-main">
+            <div class="task-action">Survey completed and delivered</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Survey co.</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">~2–3 wks</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="survey-done" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="hvac-insp">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="hvac-insp" disabled="" aria-label="HVAC contractor functional inspection of existing unit">
+          <div class="task-main">
+            <div class="task-action">HVAC contractor functional inspection of existing unit</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Mandip / Marcel</b></span></div>
+          </div>
+          <div class="chips"><span class="chip week">This week</span><span class="chip ">Tue 9/15, 10am</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="hvac-insp" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div></section><section class="phase"><div class="phase-head"><span class="phase-num">03</span><span class="phase-name">DOB (Buildings) filing &amp; permit</span><span class="phase-tag">Needs LPC approval + survey + ACP5</span></div><div class="task " data-id="dob-file">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="dob-file" disabled="" aria-label="Mandip files the ALT-1 in DOB NOW">
+          <div class="task-main">
+            <div class="task-action">Mandip files the ALT-1 in DOB NOW</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Mandip</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">After docs in hand</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="dob-file" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="dob-fees">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="dob-fees" disabled="" aria-label="Pay DOB fees and reimburse Mandip">
+          <div class="task-main">
+            <div class="task-action">Pay DOB fees and reimburse Mandip</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Zach / Alison</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">At filing</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="dob-fees" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="dob-permit">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="dob-permit" disabled="" aria-label="DOB issues the permit">
+          <div class="task-main">
+            <div class="task-action">DOB issues the permit</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Buildings</b></span></div>
+          </div>
+          <div class="chips"><span class="chip wait">City-dependent</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="dob-permit" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div></section><section class="phase"><div class="phase-head"><span class="phase-num">04</span><span class="phase-name">Construction</span><span class="phase-tag">After permit is in hand</span></div><div class="task " data-id="sched">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="sched" disabled="" aria-label="Schedule installation with Mandip and Marcel">
+          <div class="task-main">
+            <div class="task-action">Schedule installation with Mandip and Marcel</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Zach / Mandip</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">Post-permit</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="sched" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="roof-access">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="roof-access" disabled="" aria-label="Roof access through 219 during the build">
+          <div class="task-main">
+            <div class="task-action">Roof access through 219 during the build</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Zach</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">Install window</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="roof-access" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="interior">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="interior" disabled="" aria-label="Brief final-day interior access at 217A to test the unit">
+          <div class="task-main">
+            <div class="task-action">Brief final-day interior access at 217A to test the unit</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Marcel</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">Final day</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="interior" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div><div class="task " data-id="vibration">
+        <div class="task-row">
+          <input type="checkbox" class="cbox" data-id="vibration" disabled="" aria-label="Confirm vibration / isolation on the new unit">
+          <div class="task-main">
+            <div class="task-action">Confirm vibration / isolation on the new unit</div>
+            <div class="task-meta"><span class="owner">Owner: <b>Mandip</b></span></div>
+          </div>
+          <div class="chips"><span class="chip ">At install</span></div>
+        </div>
+        <div class="note-slot "><textarea data-noteinput="vibration" readonly="" placeholder="Add a note or log an update…"></textarea></div>
+      </div></section></main>
 
   <section class="band">
     <h2>Standing reminders</h2>
@@ -126,15 +326,29 @@
   </section>
 
   <div class="footer">
-    <span class="status" id="status"><span class="dot"></span><span id="status-text">Starting…</span></span>
-    <button class="reset" id="reset">Reset all progress</button>
+    <span class="status live" id="status"><span class="dot"></span><span id="status-text">Live view — sign in to edit</span></span>
+    <div class="footer-actions">
+      <span class="whoami" id="whoami"></span>
+      <button class="btn-quiet" id="reset" hidden="">Reset all progress</button>
+      <button class="btn-quiet" id="authbtn">Sign in to edit</button>
+    </div>
   </div>
+
+  <form class="signin" id="signin" autocomplete="on">
+    <input type="email" id="si-email" placeholder="you@email.com" autocomplete="username" required="">
+    <input type="password" id="si-pass" placeholder="Password" autocomplete="current-password" required="">
+    <button type="submit">Sign in</button>
+    <span class="si-msg" id="si-msg"></span>
+  </form>
 </div>
 
 <script>
 /* ============================================================
-   SUPABASE CONFIG — fill these two in to make the tracker shared.
-   Leave them blank and it still works, saving only on this device.
+   SUPABASE CONFIG
+   ------------------------------------------------------------
+   Read access is public (anyone with the link sees live status).
+   Checking off tasks and editing notes requires signing in —
+   only Supabase users you create in the dashboard can write.
    ============================================================ */
 const SUPABASE_URL = "https://wxzxbfzvicnqsqevuzme.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4enhiZnp2aWNucXNxZXZ1em1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDI1OTIsImV4cCI6MjEwNDYxODU5Mn0.a-iv2Ly0ZLdYHjvW6PbRwziULidXjPQZVcd7YY6shV0";
@@ -178,7 +392,9 @@ const PHASES = [
 let state = { checked: {}, notes: {} };
 let openNotes = {};
 let sb = null;
+let session = null;
 const KEY = "tracker-217a";
+const canEdit = () => !!session;
 
 PHASES.forEach(p => p.tasks.forEach(t => { if (t.done) state.checked[t.id] = true; }));
 
@@ -186,6 +402,9 @@ function setStatus(mode, text) {
   const el = document.getElementById("status");
   el.className = "status " + mode;
   document.getElementById("status-text").textContent = text;
+}
+function syncedStatusText() {
+  return canEdit() ? "Synced — your changes save live" : "Live view — sign in to edit";
 }
 function mergeData(d) {
   if (!d) return;
@@ -198,34 +417,45 @@ async function load() {
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     try {
       sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data: { session: s } } = await sb.auth.getSession();
+      session = s;
+      sb.auth.onAuthStateChange((_evt, s2) => {
+        session = s2;
+        renderAuth();
+        renderPhases();
+        if (sb) setStatus("live", syncedStatusText());
+      });
       const { data, error } = await sb.from("tracker_state").select("data").eq("id", ROW_ID).maybeSingle();
       if (error) throw error;
       if (data && data.data) mergeData(data.data);
       subscribe();
-      setStatus("live", "Synced — shared with anyone who has the link");
+      setStatus("live", syncedStatusText());
       return;
     } catch (e) {
       setStatus("local", "Couldn't reach Supabase — saving on this device only");
     }
   }
   try {
-    const r = await window.storage.get(KEY);
-    if (r && r.value) mergeData(JSON.parse(r.value));
+    const raw = localStorage.getItem(KEY);
+    if (raw) mergeData(JSON.parse(raw));
   } catch (e) { /* first run */ }
   if (!sb) setStatus("local", "Saved on this device (add Supabase config to share)");
 }
 
 async function save() {
   const payload = { checked: state.checked, notes: state.notes };
-  if (sb) {
+  if (sb && canEdit()) {
     try {
       const { error } = await sb.from("tracker_state").upsert({ id: ROW_ID, data: payload, updated_at: new Date().toISOString() });
       if (error) throw error;
       stampSaved(); return;
-    } catch (e) { setStatus("local", "Sync failed — retrying on next change"); }
+    } catch (e) {
+      setStatus("local", "Sync failed — retrying on next change");
+      return;
+    }
   }
-  try { await window.storage.set(KEY, JSON.stringify(payload)); } catch (e) {}
-  stampSaved();
+  // Signed out: keep a local copy only; the shared record is not touched.
+  try { localStorage.setItem(KEY, JSON.stringify(payload)); } catch (e) {}
 }
 
 function stampSaved() {
@@ -249,6 +479,44 @@ function subscribe() {
       .subscribe();
   } catch (e) {}
 }
+
+/* ---- Auth UI ---- */
+function renderAuth() {
+  const btn = document.getElementById("authbtn");
+  const who = document.getElementById("whoami");
+  const form = document.getElementById("signin");
+  document.getElementById("reset").hidden = !canEdit();
+  if (canEdit()) {
+    who.textContent = "Editing as " + (session.user.email || "signed-in user");
+    btn.textContent = "Sign out";
+    form.classList.remove("open");
+    document.getElementById("si-msg").textContent = "";
+  } else {
+    who.textContent = "";
+    btn.textContent = "Sign in to edit";
+  }
+}
+document.getElementById("authbtn").addEventListener("click", async () => {
+  if (canEdit()) { await sb.auth.signOut(); return; }
+  const form = document.getElementById("signin");
+  form.classList.toggle("open");
+  if (form.classList.contains("open")) document.getElementById("si-email").focus();
+});
+document.getElementById("signin").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!sb) return;
+  const msg = document.getElementById("si-msg");
+  msg.textContent = "Signing in…";
+  const email = document.getElementById("si-email").value.trim();
+  const password = document.getElementById("si-pass").value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  document.getElementById("si-pass").value = "";
+  if (error) { msg.textContent = error.message; return; }
+  msg.textContent = "";
+  // onAuthStateChange re-renders; pull the freshest shared state too.
+  const { data } = await sb.from("tracker_state").select("data").eq("id", ROW_ID).maybeSingle();
+  if (data && data.data) { state.checked = data.data.checked || {}; state.notes = data.data.notes || {}; renderAll(); }
+});
 
 /* ---- Rendering ---- */
 function allTasks() { return PHASES.flatMap(p => p.tasks); }
@@ -282,50 +550,58 @@ function renderProgress() {
   document.getElementById("count").textContent = `${done} of ${tasks.length} done · ${pct}%`;
 }
 function renderPhases() {
+  const editable = canEdit();
   document.getElementById("phases").innerHTML = PHASES.map(p => {
     const rows = p.tasks.map(t => {
       const checked = !!state.checked[t.id], note = state.notes[t.id] || "", open = openNotes[t.id];
       const chips = [];
       if (checked) chips.push(`<span class="chip">Done</span>`);
       else { if (t.week) chips.push(`<span class="chip week">This week</span>`); chips.push(`<span class="chip ${t.wait ? "wait" : ""}">${t.timing}</span>`); }
+      const noteBtn = (editable || note)
+        ? `<button class="notebtn ${note ? "has" : ""}" data-note="${t.id}">${open ? "Hide note" : (editable ? "Note" : "View note")}</button>`
+        : "";
       return `<div class="task ${checked ? "done" : ""}" data-id="${t.id}">
         <div class="task-row">
-          <input type="checkbox" class="cbox" data-id="${t.id}" ${checked ? "checked" : ""} aria-label="${t.action}">
+          <input type="checkbox" class="cbox" data-id="${t.id}" ${checked ? "checked" : ""} ${editable ? "" : "disabled"} aria-label="${t.action}">
           <div class="task-main">
             <div class="task-action">${t.action}</div>
-            <div class="task-meta"><span class="owner">Owner: <b>${t.owner}</b></span>
-              <button class="notebtn ${note ? "has" : ""}" data-note="${t.id}">${open ? "Hide note" : "Note"}</button></div>
+            <div class="task-meta"><span class="owner">Owner: <b>${t.owner}</b></span>${noteBtn}</div>
           </div>
           <div class="chips">${chips.join("")}</div>
         </div>
-        <div class="note-slot ${open ? "open" : ""}"><textarea data-noteinput="${t.id}" placeholder="Add a note or log an update…">${note}</textarea></div>
+        <div class="note-slot ${open ? "open" : ""}"><textarea data-noteinput="${t.id}" ${editable ? "" : "readonly"} placeholder="Add a note or log an update…">${note}</textarea></div>
       </div>`;
     }).join("");
     return `<section class="phase"><div class="phase-head"><span class="phase-num">${String(p.n).padStart(2, "0")}</span><span class="phase-name">${p.name}</span><span class="phase-tag">${p.tag}</span></div>${rows}</section>`;
   }).join("");
 }
-function renderAll() { renderRail(); renderProgress(); renderPhases(); }
+function renderAll() { renderRail(); renderProgress(); renderPhases(); renderAuth(); }
 
 document.addEventListener("change", e => {
   const cb = e.target.closest(".cbox");
-  if (cb) { state.checked[cb.dataset.id] = cb.checked; renderAll(); save(); }
+  if (cb) {
+    if (!canEdit()) { cb.checked = !cb.checked; return; }
+    state.checked[cb.dataset.id] = cb.checked; renderAll(); save();
+  }
 });
 document.addEventListener("click", e => {
   const nb = e.target.closest("[data-note]");
   if (nb) {
     const id = nb.dataset.note; openNotes[id] = !openNotes[id]; renderPhases();
-    if (openNotes[id]) { const ta = document.querySelector(`[data-noteinput="${id}"]`); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
+    if (openNotes[id]) { const ta = document.querySelector(`[data-noteinput="${id}"]`); if (ta && canEdit()) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
   }
 });
 document.addEventListener("input", e => {
   const ta = e.target.closest("[data-noteinput]");
   if (ta) {
+    if (!canEdit()) return;
     const id = ta.dataset.noteinput; state.notes[id] = ta.value;
     const btn = document.querySelector(`[data-note="${id}"]`); if (btn) btn.classList.toggle("has", !!ta.value);
     clearTimeout(window.__noteT); window.__noteT = setTimeout(save, 600);
   }
 });
 document.getElementById("reset").addEventListener("click", () => {
+  if (!canEdit()) return;
   if (!confirm("Reset all checkmarks and notes back to the starting state?")) return;
   state = { checked: {}, notes: {} }; openNotes = {};
   PHASES.forEach(p => p.tasks.forEach(t => { if (t.done) state.checked[t.id] = true; }));
@@ -335,3 +611,4 @@ document.getElementById("today").textContent = "Updated " + new Date().toLocaleD
 
 (async function init() { await load(); renderAll(); })();
 </script>
+</body></html>
